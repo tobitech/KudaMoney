@@ -8,36 +8,61 @@
 import XCTest
 
 final class KudaMoneyUITests: XCTestCase {
-
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
-        continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+    private enum LaunchEnvironment {
+        static let hasCompletedOnboarding = "UITests.hasCompletedOnboarding"
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    override func setUpWithError() throws {
+        continueAfterFailure = false
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+    func testFirstLaunchShowsOnboardingAndContinuesToHome() throws {
+        let app = makeApp(hasCompletedOnboarding: false)
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.otherElements["onboarding.root"].waitForExistence(timeout: 1))
+        XCTAssertTrue(app.staticTexts["onboarding.title"].exists)
+
+        app.buttons["onboarding.getStartedButton"].tap()
+
+        XCTAssertTrue(app.otherElements["home.root"].waitForExistence(timeout: 1))
+    }
+
+    @MainActor
+    func testReturningUserLaunchSkipsOnboarding() throws {
+        let app = makeApp(hasCompletedOnboarding: true)
+        app.launch()
+
+        XCTAssertTrue(app.otherElements["home.root"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.otherElements["onboarding.root"].exists)
+    }
+
+    @MainActor
+    func testOpensSettingsFromHome() throws {
+        let app = makeApp(hasCompletedOnboarding: true)
+        app.launch()
+
+        XCTAssertTrue(app.otherElements["home.root"].waitForExistence(timeout: 1))
+
+        app.buttons["home.openSettingsButton"].tap()
+
+        XCTAssertTrue(app.otherElements["settings.root"].waitForExistence(timeout: 1))
     }
 
     @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            makeApp(hasCompletedOnboarding: true).launch()
         }
+    }
+}
+
+private extension KudaMoneyUITests {
+    func makeApp(hasCompletedOnboarding: Bool) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment[LaunchEnvironment.hasCompletedOnboarding] = hasCompletedOnboarding ? "1" : "0"
+        return app
     }
 }
