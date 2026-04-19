@@ -16,7 +16,7 @@ protocol HomeScreenDataProviding {
 }
 
 /// Provides greeting text based on the current time of day.
-protocol HomeGreetingProviding {
+protocol HomeGreetingProviding: Sendable {
     /// Produces the greeting shown in the screen header.
     /// - Parameter date: The date used to compute the greeting.
     /// - Returns: A short greeting phrase such as "Good morning".
@@ -24,7 +24,7 @@ protocol HomeGreetingProviding {
 }
 
 /// Formats monetary values for display on the home screen.
-protocol CurrencyAmountFormatting {
+protocol CurrencyAmountFormatting: Sendable {
     /// Formats a decimal amount into a localized currency string.
     /// - Parameters:
     ///   - amount: The amount to format.
@@ -34,7 +34,7 @@ protocol CurrencyAmountFormatting {
 }
 
 /// Formats dates into compact relative labels for transaction rows.
-protocol RelativeDateFormatting {
+protocol RelativeDateFormatting: Sendable {
     /// Produces a relative date string for a transaction.
     /// - Parameters:
     ///   - date: The transaction date.
@@ -218,11 +218,11 @@ struct SampleHomeScreenDataProvider: HomeScreenDataProviding {
 }
 
 /// Implements time-of-day greetings for the home-screen header.
-struct TimeOfDayGreetingProvider: HomeGreetingProviding {
+struct TimeOfDayGreetingProvider: HomeGreetingProviding, Sendable {
     /// Produces a time-aware greeting.
     /// - Parameter date: The date used to choose the greeting.
     /// - Returns: "Good morning", "Good afternoon", or "Good evening".
-    func greeting(for date: Date) -> String {
+    nonisolated func greeting(for date: Date) -> String {
         let hour = Calendar.autoupdatingCurrent.component(.hour, from: date)
 
         switch hour {
@@ -237,30 +237,37 @@ struct TimeOfDayGreetingProvider: HomeGreetingProviding {
 }
 
 /// Formats amounts into locale-aware currency strings.
-struct CurrencyAmountFormatter: CurrencyAmountFormatting {
+struct CurrencyAmountFormatter: CurrencyAmountFormatting, Sendable {
+    private let localeIdentifier: String
+
+    /// Creates a currency formatter with a specific locale.
+    /// - Parameter locale: The locale used to derive grouping, symbol, and fraction-digit behavior.
+    init(locale: Locale = .autoupdatingCurrent) {
+        self.localeIdentifier = locale.identifier
+    }
+
     /// Formats the given amount using the provided currency code.
     /// - Parameters:
     ///   - amount: The amount to format.
     ///   - currencyCode: The ISO 4217 currency code to display.
     /// - Returns: A user-facing currency string.
-    func string(from amount: Decimal, currencyCode: String) -> String {
+    nonisolated func string(from amount: Decimal, currencyCode: String) -> String {
         let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: localeIdentifier)
         formatter.numberStyle = .currency
         formatter.currencyCode = currencyCode
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
 
 /// Formats transaction dates into compact relative labels.
-struct RelativeHomeDateFormatter: RelativeDateFormatting {
+struct RelativeHomeDateFormatter: RelativeDateFormatting, Sendable {
     /// Formats the transaction date relative to the current date.
     /// - Parameters:
     ///   - date: The transaction date to format.
     ///   - referenceDate: The reference date used to compare relative time.
     /// - Returns: A compact relative label.
-    func string(from date: Date, relativeTo referenceDate: Date) -> String {
+    nonisolated func string(from date: Date, relativeTo referenceDate: Date) -> String {
         let calendar = Calendar.autoupdatingCurrent
 
         if calendar.isDateInToday(date) {

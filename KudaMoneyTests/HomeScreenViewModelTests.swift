@@ -22,6 +22,23 @@ struct HomeScreenViewModelTests {
         }
     }
 
+    private final class DelayedHomeScreenDataProvider: HomeScreenDataProviding {
+        let snapshot: HomeAccountSnapshot
+        let delayNanoseconds: UInt64
+        private(set) var fetchCount = 0
+
+        init(snapshot: HomeAccountSnapshot, delayNanoseconds: UInt64) {
+            self.snapshot = snapshot
+            self.delayNanoseconds = delayNanoseconds
+        }
+
+        func fetchHomeSnapshot(simulateError: Bool) async throws -> HomeAccountSnapshot {
+            fetchCount += 1
+            try await Task.sleep(nanoseconds: delayNanoseconds)
+            return snapshot
+        }
+    }
+
     @Test
     @MainActor
     func loadPopulatesBalanceGreetingAndTransactions() async {
@@ -118,5 +135,30 @@ struct HomeScreenViewModelTests {
 
         #expect(state.emptyMessage == "No recent activity.")
         #expect(state.transactions.isEmpty)
+    }
+
+    @Test
+    @MainActor
+    func loadIfNeededRetriesAfterInitialCancellation() async {
+        let snapshot = SampleHomeScreenDataProvider.sampleSnapshot(referenceDate: Date())
+        let dataProvider = DelayedHomeScreenDataProvider(
+            snapshot: snapshot,
+            delayNanoseconds: 200_000_000
+        )
+        let viewModel = HomeScreenViewModel(dataProvider: dataProvider)
+
+        let firstLoadTask = Task {
+            await viewModel.loadIfNeeded(currencyCode: "USD")
+        }
+
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        viewModel.cancelLoading()
+        await firstLoadTask.value
+
+        await viewModel.loadIfNeeded(currencyCode: "USD")
+
+        #expect(dataProvider.fetchCount == 2)
+        #expect(!viewModel.state.isLoading)
+        #expect(viewModel.state.transactions.count == snapshot.recentTransactions.count)
     }
 }

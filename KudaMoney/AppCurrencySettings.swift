@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 
+/// Stores constants and launch-time helpers related to currency selection.
 enum AppCurrencySettings {
     static let storageKey = "defaultCurrencyCode"
 
@@ -17,25 +18,55 @@ enum AppCurrencySettings {
     ]
 }
 
+/// Parses launch arguments that influence the initial app currency.
+enum AppCurrencyLaunchArgument {
+    /// The launch argument used to seed the default currency during UI tests.
+    static let defaultCurrencyCodeFlag = "-defaultCurrencyCode"
+
+    /// Extracts the currency override from a launch-argument list.
+    /// - Parameter arguments: The raw process launch arguments.
+    /// - Returns: The ISO 4217 code supplied after the override flag, if present.
+    static func currencyCode(from arguments: [String]) -> String? {
+        guard let flagIndex = arguments.firstIndex(of: defaultCurrencyCodeFlag) else {
+            return nil
+        }
+
+        let valueIndex = arguments.index(after: flagIndex)
+        guard arguments.indices.contains(valueIndex) else {
+            return nil
+        }
+
+        let candidate = arguments[valueIndex].trimmingCharacters(in: .whitespacesAndNewlines)
+        return candidate.isEmpty ? nil : candidate
+    }
+}
+
+/// Persists the selected currency code.
 protocol CurrencyPreferenceStoring: AnyObject {
     var selectedCurrencyCode: String { get set }
 }
 
+/// Stores the selected currency in `UserDefaults`.
 final class UserDefaultsCurrencyPreferenceStore: CurrencyPreferenceStoring {
     private let defaults: UserDefaults
     private let storageKey: String
 
+    /// Creates a currency preference store.
+    /// - Parameters:
+    ///   - defaults: The defaults container used for persistence.
+    ///   - storageKey: The key used to store the selected currency.
+    ///   - arguments: The launch arguments that can override the initial currency.
     init(
         defaults: UserDefaults = .standard,
-        storageKey: String = AppCurrencySettings.storageKey
+        storageKey: String = AppCurrencySettings.storageKey,
+        arguments: [String] = ProcessInfo.processInfo.arguments
     ) {
         self.defaults = defaults
         self.storageKey = storageKey
-			
-			// sort an array
-			// 0(1)
-			// array[1]
-			// array.subscript(0)
+
+        if let launchCurrencyCode = AppCurrencyLaunchArgument.currencyCode(from: arguments) {
+            defaults.set(launchCurrencyCode, forKey: storageKey)
+        }
     }
 
     var selectedCurrencyCode: String {
@@ -44,11 +75,13 @@ final class UserDefaultsCurrencyPreferenceStore: CurrencyPreferenceStoring {
     }
 }
 
+/// Supplies locale-backed currency metadata.
 protocol CurrencyLocaleProviding {
     var currentCurrencyCode: String? { get }
     func localizedCurrencyName(for code: String) -> String?
 }
 
+/// Adapts the current locale into currency metadata for the app.
 struct SystemCurrencyLocaleProvider: CurrencyLocaleProviding {
     private let locale: Locale
 
@@ -65,6 +98,7 @@ struct SystemCurrencyLocaleProvider: CurrencyLocaleProviding {
     }
 }
 
+/// Resolves the effective currency code used across the app.
 struct CurrencyCodeResolver {
     private let fallbackCode: String
 
@@ -81,6 +115,7 @@ struct CurrencyCodeResolver {
     }
 }
 
+/// Represents a selectable currency option in Settings.
 struct CurrencyOption: Identifiable, Equatable {
     let code: String
     let title: String
@@ -88,6 +123,7 @@ struct CurrencyOption: Identifiable, Equatable {
     var id: String { code }
 }
 
+/// Coordinates currency selection and locale-aware currency metadata for Settings and Home.
 @MainActor
 @Observable
 final class CurrencySettingsViewModel {

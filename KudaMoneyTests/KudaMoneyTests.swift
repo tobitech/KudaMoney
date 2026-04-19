@@ -5,6 +5,7 @@
 //  Created by Oluwatobi Omotayo on 19/04/2026.
 //
 
+import Foundation
 import Testing
 @testable import KudaMoney
 
@@ -37,6 +38,8 @@ struct KudaMoneyTests {
             localizedNames[code]
         }
     }
+
+    private let testDefaultsSuiteName = "KudaMoneyTests.CurrencyLaunchArguments"
 
     @Test
     func showsOnboardingWhenCompletionIsMissing() {
@@ -128,6 +131,32 @@ struct KudaMoneyTests {
         #expect(
             resolver.resolveCode(storedValue: "  GBP  ", localeCurrencyCode: "USD") == "GBP"
         )
+    }
+
+    @Test
+    func launchArgumentsOverrideStoredCurrency() {
+        let defaults = UserDefaults(suiteName: testDefaultsSuiteName)!
+        defaults.removePersistentDomain(forName: testDefaultsSuiteName)
+        defaults.set("USD", forKey: AppCurrencySettings.storageKey)
+
+        let store = UserDefaultsCurrencyPreferenceStore(
+            defaults: defaults,
+            arguments: [
+                "KudaMoney",
+                AppCurrencyLaunchArgument.defaultCurrencyCodeFlag,
+                "GBP",
+            ]
+        )
+
+        #expect(store.selectedCurrencyCode == "GBP")
+    }
+
+    @Test
+    func currencyFormatterRespectsCurrenciesWithoutMinorUnits() {
+        let formatter = CurrencyAmountFormatter(locale: Locale(identifier: "en_US_POSIX"))
+        let amount = formatter.string(from: Decimal(2500), currencyCode: "JPY")
+
+        #expect(!amount.contains("."))
     }
 
     @Test

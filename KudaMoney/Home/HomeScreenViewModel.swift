@@ -89,7 +89,6 @@ final class HomeScreenViewModel {
             return
         }
 
-        hasLoaded = true
         await load()
     }
 
@@ -126,6 +125,15 @@ final class HomeScreenViewModel {
     func cancelLoading() {
         loadTask?.cancel()
         loadTask = nil
+
+        guard let lastSnapshot else {
+            return
+        }
+
+        state = stateFactory.makeLoadedState(
+            snapshot: lastSnapshot,
+            currencyCode: currentCurrencyCode
+        )
     }
 
     /// Creates a loaded sample view model for previews.
@@ -165,30 +173,31 @@ final class HomeScreenViewModel {
         state.isLoading = true
         state.error = nil
 
-        let task = Task { [dataProvider, simulateError] in
-            try await dataProvider.fetchHomeSnapshot(simulateError: simulateError)
-        }
-        loadTask = Task {
+        loadTask = Task { [dataProvider, simulateError] in
             do {
-                let snapshot = try await task.value
+                let snapshot = try await dataProvider.fetchHomeSnapshot(simulateError: simulateError)
 
                 guard !Task.isCancelled else {
                     return
                 }
 
-                await MainActor.run {
-                    lastSnapshot = snapshot
-                    state = stateFactory.makeLoadedState(
-                        snapshot: snapshot,
-                        currencyCode: currentCurrencyCode
-                    )
-                }
+                lastSnapshot = snapshot
+                hasLoaded = true
+                state = stateFactory.makeLoadedState(
+                    snapshot: snapshot,
+                    currencyCode: currentCurrencyCode
+                )
             } catch is CancellationError {
-                return
-            } catch {
-                await MainActor.run {
-                    state = stateFactory.makeErrorState()
+                guard let lastSnapshot else {
+                    return
                 }
+
+                state = stateFactory.makeLoadedState(
+                    snapshot: lastSnapshot,
+                    currencyCode: currentCurrencyCode
+                )
+            } catch {
+                state = stateFactory.makeErrorState()
             }
         }
 
