@@ -12,6 +12,10 @@ final class KudaMoneyUITests: XCTestCase {
         static let hasCompletedOnboarding = "UITests.hasCompletedOnboarding"
     }
 
+    private enum LaunchArgument {
+        static let defaultCurrencyCode = "-defaultCurrencyCode"
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -51,6 +55,34 @@ final class KudaMoneyUITests: XCTestCase {
     }
 
     @MainActor
+    func testChangingCurrencyInSettingsUpdatesHomeBalance() throws {
+        let app = makeApp(
+            hasCompletedOnboarding: true,
+            defaultCurrencyCode: "USD"
+        )
+        app.launch()
+
+        let balanceAmount = app.staticTexts["home.balanceAmountText"]
+        XCTAssertTrue(balanceAmount.waitForExistence(timeout: 2))
+        XCTAssertTrue(balanceAmount.label.contains("$"))
+
+        app.buttons["home.openSettingsButton"].tap()
+        XCTAssertTrue(app.otherElements["settings.root"].waitForExistence(timeout: 2))
+
+        app.otherElements["settings.currencyPicker"].tap()
+
+        let gbpOption = app.staticTexts["settings.currencyOption.GBP"]
+        XCTAssertTrue(gbpOption.waitForExistence(timeout: 2))
+        gbpOption.tap()
+
+        navigateBackIfPossible(in: app)
+        navigateBackIfPossible(in: app)
+
+        XCTAssertTrue(app.otherElements["home.root"].waitForExistence(timeout: 2))
+        XCTAssertTrue(balanceAmount.label.contains("£"))
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
@@ -60,9 +92,32 @@ final class KudaMoneyUITests: XCTestCase {
 }
 
 private extension KudaMoneyUITests {
-    func makeApp(hasCompletedOnboarding: Bool) -> XCUIApplication {
+    /// Creates the app with deterministic launch overrides for UI testing.
+    /// - Parameters:
+    ///   - hasCompletedOnboarding: Indicates whether onboarding should be skipped.
+    ///   - defaultCurrencyCode: The optional initial currency code passed through launch arguments.
+    /// - Returns: A configured application instance.
+    func makeApp(
+        hasCompletedOnboarding: Bool,
+        defaultCurrencyCode: String? = nil
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment[LaunchEnvironment.hasCompletedOnboarding] = hasCompletedOnboarding ? "1" : "0"
+        if let defaultCurrencyCode {
+            app.launchArguments += [
+                LaunchArgument.defaultCurrencyCode,
+                defaultCurrencyCode,
+            ]
+        }
         return app
+    }
+
+    /// Navigates back a single level when a navigation-bar back button is available.
+    /// - Parameter app: The running application under test.
+    func navigateBackIfPossible(in app: XCUIApplication) {
+        let backButton = app.navigationBars.buttons.element(boundBy: 0)
+        if backButton.exists {
+            backButton.tap()
+        }
     }
 }

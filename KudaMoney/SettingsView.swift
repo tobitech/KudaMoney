@@ -7,47 +7,62 @@
 
 import SwiftUI
 
-@Observable
-class SettingsViewModel {
-	
+struct SettingsView: View {
+    let currencySettingsViewModel: CurrencySettingsViewModel
+
+    private var selectedCurrencyCode: Binding<String> {
+        Binding(
+            get: { currencySettingsViewModel.selectedCurrencyCode },
+            set: { currencySettingsViewModel.updateSelectedCurrencyCode($0) }
+        )
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Default currency", selection: selectedCurrencyCode) {
+                    ForEach(currencySettingsViewModel.currencyOptions) { option in
+                        Text(option.title)
+                            .tag(option.code)
+                            .accessibilityIdentifier(
+                                "settings.currencyOption.\(option.code.isEmpty ? "system" : option.code)"
+                            )
+                    }
+                }
+                .accessibilityIdentifier("settings.currencyPicker")
+            } footer: {
+                Text("Amounts in the app use this currency unless a feature specifies otherwise.")
+            }
+        }
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.root")
+    }
 }
 
-struct SettingsView: View {
-	@AppStorage(AppCurrencySettings.storageKey)
-	private var currencyCode = ""
+/// Renders a deterministic settings preview with GBP selected.
+private struct SettingsViewPreviewContainer: View {
+    private let currencySettingsViewModel: CurrencySettingsViewModel
 
-	var body: some View {
-		Form {
-			Section {
-				Picker("Default currency", selection: $currencyCode) {
-					Text("System default")
-						.tag("")
+    init() {
+        let defaults = UserDefaults(suiteName: "SettingsViewPreview")!
+        defaults.set("GBP", forKey: AppCurrencySettings.storageKey)
 
-					ForEach(AppCurrencySettings.supportedCurrencyCodes, id: \.self) { code in
-						Text(Self.rowTitle(for: code))
-							.tag(code)
-					}
-				}
-				.accessibilityIdentifier("settings.currencyPicker")
-			} footer: {
-				Text("Amounts in the app use this currency unless a feature specifies otherwise.")
-			}
-		}
-		.navigationTitle("Settings")
-		.navigationBarTitleDisplayMode(.inline)
-		.accessibilityElement(children: .contain)
-		.accessibilityIdentifier("settings.root")
-	}
+        self.currencySettingsViewModel = CurrencySettingsViewModel(
+            preferenceStore: UserDefaultsCurrencyPreferenceStore(defaults: defaults),
+            localeProvider: SystemCurrencyLocaleProvider(locale: Locale(identifier: "en_GB")),
+            codeResolver: CurrencyCodeResolver()
+        )
+    }
 
-	private static func rowTitle(for code: String) -> String {
-		let locale = Locale.autoupdatingCurrent
-		let name = locale.localizedString(forCurrencyCode: code) ?? code
-		return "\(name) (\(code))"
-	}
+    var body: some View {
+        NavigationStack {
+            SettingsView(currencySettingsViewModel: currencySettingsViewModel)
+        }
+    }
 }
 
 #Preview {
-	NavigationStack {
-		SettingsView()
-	}
+    SettingsViewPreviewContainer()
 }
