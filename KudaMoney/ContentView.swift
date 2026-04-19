@@ -7,50 +7,101 @@
 
 import SwiftUI
 
+/// Hosts the neo-bank home screen and binds it to shared app-level settings.
 struct ContentView: View {
-    @AppStorage(AppCurrencySettings.storageKey)
-    private var storedCurrencyCode = ""
-
-    private var currencyCode: String {
-        AppCurrencySettings.resolveCode(
-            storedValue: storedCurrencyCode,
-            localeCurrencyCode: Locale.current.currency?.identifier
-        )
-    }
+    let currencySettingsViewModel: CurrencySettingsViewModel
+    let homeViewModel: HomeScreenViewModel
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Image(systemName: "globe")
-                    .imageScale(.large)
-                    .foregroundStyle(.tint)
+            ScrollView {
+                VStack(spacing: 24) {
+                    HomeHeaderView(
+                        greeting: homeViewModel.state.greeting,
+                        currencySettingsViewModel: currencySettingsViewModel
+                    )
 
-                Text("Hello, People!")
+                    if let errorState = homeViewModel.state.error, !homeViewModel.state.isLoading {
+                        HomeErrorCardView(
+                            errorState: errorState,
+                            retry: {
+                                Task {
+                                    await homeViewModel.retry(
+                                        currencyCode: currencySettingsViewModel.effectiveCurrencyCode
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        HomeBalanceCardView(
+                            title: homeViewModel.state.balanceTitle,
+                            amount: homeViewModel.state.balanceAmount,
+                            isLoading: homeViewModel.state.isLoading
+                        )
 
-                Text(1234.56, format: .currency(code: currencyCode))
-                    .font(.title2.weight(.semibold))
-                    .accessibilityIdentifier("home.sampleCurrencyAmount")
-            }
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .navigationTitle("Home")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Image(systemName: "gearshape")
+                        HomeRecentTransactionsSectionView(
+                            sectionTitle: homeViewModel.state.recentActivityTitle,
+                            transactions: homeViewModel.state.transactions,
+                            emptyMessage: homeViewModel.state.emptyMessage,
+                            isLoading: homeViewModel.state.isLoading
+                        )
                     }
-                    .accessibilityLabel("Settings")
-                    .accessibilityIdentifier("home.openSettingsButton")
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 32)
             }
-            .accessibilityElement(children: .contain)
+            .background(Color(uiColor: .systemGroupedBackground))
+            .refreshable {
+                await homeViewModel.refresh(
+                    currencyCode: currencySettingsViewModel.effectiveCurrencyCode
+                )
+            }
+            .task {
+                await homeViewModel.loadIfNeeded(
+                    currencyCode: currencySettingsViewModel.effectiveCurrencyCode
+                )
+            }
+            .onDisappear {
+                homeViewModel.cancelLoading()
+            }
+            .onChange(of: currencySettingsViewModel.effectiveCurrencyCode) { _, newValue in
+                homeViewModel.updateCurrencyCode(newValue)
+            }
             .accessibilityIdentifier("home.root")
         }
     }
 }
 
+/// Renders a deterministic GBP-based home preview.
+private struct ContentViewPreviewContainer: View {
+    private let currencySettingsViewModel: CurrencySettingsViewModel
+    private let homeViewModel: HomeScreenViewModel
+
+    init() {
+        let defaults = UserDefaults(suiteName: "ContentViewPreview")!
+        defaults.set("GBP", forKey: AppCurrencySettings.storageKey)
+
+        let currencySettingsViewModel = CurrencySettingsViewModel(
+            preferenceStore: UserDefaultsCurrencyPreferenceStore(defaults: defaults),
+            localeProvider: SystemCurrencyLocaleProvider(locale: Locale(identifier: "en_GB")),
+            codeResolver: CurrencyCodeResolver()
+        )
+
+        self.currencySettingsViewModel = currencySettingsViewModel
+        self.homeViewModel = HomeScreenViewModel.preview(
+            currencyCode: currencySettingsViewModel.effectiveCurrencyCode
+        )
+    }
+
+    var body: some View {
+        ContentView(
+            currencySettingsViewModel: currencySettingsViewModel,
+            homeViewModel: homeViewModel
+        )
+    }
+}
+
 #Preview {
-    ContentView()
+    ContentViewPreviewContainer()
 }

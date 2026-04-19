@@ -7,63 +7,41 @@
 
 import SwiftUI
 
-enum OnboardingLaunchState {
-    static let completionKey = "hasCompletedOnboarding"
-    static let uiTestOverrideKey = "UITests.hasCompletedOnboarding"
-
-    static func shouldShowOnboarding(
-        storedCompletion: Bool,
-        environment: [String: String]
-    ) -> Bool {
-        if let override = environment[uiTestOverrideKey] {
-            switch override {
-            case "0":
-                return true
-            case "1":
-                return false
-            default:
-                break
-            }
-        }
-
-        return !storedCompletion
-    }
-}
-
+/// Composes shared app-level state and launches the root application flow.
 @main
 struct KudaMoneyApp: App {
+    @State private var onboardingCoordinator = OnboardingCoordinator()
+    @State private var currencySettingsViewModel = CurrencySettingsViewModel()
+    @State private var homeViewModel = HomeScreenViewModel()
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(
+                onboardingCoordinator: onboardingCoordinator,
+                currencySettingsViewModel: currencySettingsViewModel,
+                homeViewModel: homeViewModel
+            )
         }
     }
 }
 
+/// Chooses between onboarding and the authenticated home experience.
 private struct RootView: View {
-    @AppStorage(OnboardingLaunchState.completionKey)
-    private var hasCompletedOnboarding = false
-
-    @State private var hasDismissedOnboarding = false
-
-    private let environment = ProcessInfo.processInfo.environment
-
-    private var shouldShowOnboarding: Bool {
-        !hasDismissedOnboarding &&
-        OnboardingLaunchState.shouldShowOnboarding(
-            storedCompletion: hasCompletedOnboarding,
-            environment: environment
-        )
-    }
+    let onboardingCoordinator: OnboardingCoordinator
+    let currencySettingsViewModel: CurrencySettingsViewModel
+    let homeViewModel: HomeScreenViewModel
 
     var body: some View {
         Group {
-            if shouldShowOnboarding {
+            if onboardingCoordinator.shouldShowOnboarding {
                 OnboardingView {
-                    hasCompletedOnboarding = true
-                    hasDismissedOnboarding = true
+                    onboardingCoordinator.completeOnboarding()
                 }
             } else {
-                ContentView()
+                ContentView(
+                    currencySettingsViewModel: currencySettingsViewModel,
+                    homeViewModel: homeViewModel
+                )
             }
         }
     }

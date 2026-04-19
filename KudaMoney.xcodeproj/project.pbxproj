@@ -410,6 +410,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "$(inherited) -framework AppIntents";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oluwatobiomotayo.KudaMoney;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -442,6 +443,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "$(inherited) -framework AppIntents";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oluwatobiomotayo.KudaMoney;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -464,6 +466,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "$(inherited) -framework AppIntents";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oluwatobiomotayo.KudaMoneyTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -486,6 +489,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "$(inherited) -framework AppIntents";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oluwatobiomotayo.KudaMoneyTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -506,6 +510,7 @@
 				DEVELOPMENT_TEAM = J8A5ZAM5GV;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "$(inherited) -framework AppIntents";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oluwatobiomotayo.KudaMoneyUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -526,6 +531,7 @@
 				DEVELOPMENT_TEAM = J8A5ZAM5GV;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "$(inherited) -framework AppIntents";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oluwatobiomotayo.KudaMoneyUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
